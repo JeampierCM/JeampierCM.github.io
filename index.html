@@ -11,9 +11,37 @@
     <!--<link rel="stylesheet" href="estilo-mejorado.css"> -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lectura QR y codigo de barras desactivada temporalmente.
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    -->
     <link rel="stylesheet" href="estilo.css">
 </head>
-<body>
+<body class="auth-locked">
+
+    <div id="authOverlay" class="auth-overlay">
+        <div class="auth-card">
+            <h1><i class="fas fa-user-shield"></i> Acceso al Sistema</h1>
+            <p>Ingresa con tu cuenta para continuar.</p>
+            <form id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <label for="loginUser">Usuario</label>
+                    <input type="text" id="loginUser" autocomplete="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Contraseña</label>
+                    <input type="password" id="loginPassword" autocomplete="current-password" required>
+                </div>
+                <label class="auth-remember">
+                    <input type="checkbox" id="rememberDevice">
+                    <span>Recordarme en este móvil</span>
+                </label>
+                <button type="submit" class="btn primary-btn auth-submit">
+                    <i class="fas fa-sign-in-alt"></i> Ingresar
+                </button>
+            </form>
+            <div id="authStatus" class="status-message" style="display:none;"></div>
+        </div>
+    </div>
 
     <div class="dashboard-container">
         <!-- Barra Lateral -->
@@ -43,9 +71,18 @@
                 <a href="#resumenes" data-section="resumenes">
                     <i class="fas fa-list-alt"></i> Resúmenes
                 </a>
-                <!--<a href="#configuracion" data-section="configuracion">
+                <a href="#movimientos" data-section="movimientos">
+                    <i class="fas fa-exchange-alt"></i> Movimientos
+                </a>
+                <a href="#lotes" data-section="lotes">
+                    <i class="fas fa-layer-group"></i> Lotes FIFO
+                </a>
+                <a href="#detalleVentas" data-section="detalleVentas">
+                    <i class="fas fa-receipt"></i> Detalle FIFO
+                </a>
+                <a href="#configuracion" data-section="configuracion">
                     <i class="fas fa-cog"></i> Configuración
-                </a>-->
+                </a>
             </nav>
         </aside>
 
@@ -72,22 +109,22 @@
                 <div class="stats-grid">
                     <div class="stat-card ventas">
                         <i class="fas fa-shopping-cart fa-2x" style="color: var(--primary-color);"></i>
-                        <div class="stat-value" id="totalVentas">$0.00</div>
+                        <div class="stat-value" id="totalVentas">S/0.00</div>
                         <div class="stat-label">Total Ventas</div>
                     </div>
                     <div class="stat-card compras">
                         <i class="fas fa-truck-loading fa-2x" style="color: var(--info-color);"></i>
-                        <div class="stat-value" id="totalCompras">$0.00</div>
+                        <div class="stat-value" id="totalCompras">S/0.00</div>
                         <div class="stat-label">Total Compras</div>
                     </div>
                     <div class="stat-card ganancias">
                         <i class="fas fa-chart-line fa-2x" style="color: var(--secondary-color);"></i>
-                        <div class="stat-value" id="totalGanancias">$0.00</div>
+                        <div class="stat-value" id="totalGanancias">S/0.00</div>
                         <div class="stat-label">Ganancias Netas</div>
                     </div>
                     <div class="stat-card gastos">
                         <i class="fas fa-money-bill-wave fa-2x" style="color: var(--danger-color);"></i>
-                        <div class="stat-value" id="totalGastos">$0.00</div>
+                        <div class="stat-value" id="totalGastos">S/0.00</div>
                         <div class="stat-label">Total Gastos</div>
                     </div>
                 </div>
@@ -113,13 +150,43 @@
             <i class="fas fa-sync"></i> Refrescar Inventario
         </button>
     </div>
+
+    <div class="inventory-filters" aria-label="Filtros del inventario">
+        <div class="filter-field filter-search">
+            <label for="inventarioSearch">Buscar producto</label>
+            <input type="search" id="inventarioSearch" placeholder="Nombre, código, categoría o ID">
+        </div>
+        <div class="filter-field">
+            <label for="inventarioDesde">Creado desde</label>
+            <input type="date" id="inventarioDesde">
+        </div>
+        <div class="filter-field">
+            <label for="inventarioHasta">Creado hasta</label>
+            <input type="date" id="inventarioHasta">
+        </div>
+        <div class="filter-field">
+            <label for="inventarioStock">Stock</label>
+            <select id="inventarioStock">
+                <option value="todos">Todos</option>
+                <option value="disponible">Disponible</option>
+                <option value="bajo">Stock bajo (1-4)</option>
+                <option value="agotado">Agotado</option>
+            </select>
+        </div>
+        <div class="filter-field filter-action">
+            <button type="button" class="btn secondary-btn" id="limpiarFiltrosInventario">
+                <i class="fas fa-eraser"></i> Limpiar filtros
+            </button>
+        </div>
+    </div>
     
     <div id="statusInventario" class="status-message"></div>
     
     <!-- Contenedor responsive para la tabla -->
 <!-- En la sección de Inventario, reemplaza el contenedor de tabla -->
 <div class="data-table-container">
-    <table class="data-table">
+    <div class="column-selector" id="inventarioColumnSelector"></div>
+    <table class="data-table" id="inventarioTable">
         <thead>
             <tr>
                 <th>ID</th>
@@ -128,6 +195,7 @@
                 <th>Categoría</th>
                 <th>Stock</th>
                 <th>P. Venta</th>
+                <th>Lotes activos</th>
             </tr>
         </thead>
         <tbody id="inventarioTableBody">
@@ -146,8 +214,8 @@
                 <p class="status-message info" style="display:block;">El ID del producto se generará automáticamente.</p>
                 <form id="productoForm" class="form-grid">
                     <div class="form-group">
-                        <label for="p_codigo">Código Único:</label>
-                        <input type="text" id="p_codigo" required>
+                        <label for="p_codigo">Código de barras (opcional):</label>
+                        <input type="text" id="p_codigo" placeholder="Ejemplo: 7401005914676">
                     </div>
                     <div class="form-group">
                         <label for="p_nombre">Nombre:</label>
@@ -160,16 +228,57 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="p_precio_compra">Precio Compra:</label>
-                        <input type="number" id="p_precio_compra" required min="0.01" step="0.01">
+                        <label for="p_forma_compra">Forma de compra:</label>
+                        <select id="p_forma_compra" required>
+                            <option value="unidad">Unidad</option>
+                            <option value="caja">Caja</option>
+                            <option value="paquete">Paquete</option>
+                            <option value="docena">Docena</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label for="p_precio_venta">Precio Venta:</label>
+                        <label for="p_cantidad_unidades">Cantidad de unidades:</label>
+                        <input type="number" id="p_cantidad_unidades" min="1" step="1" value="1" class="unit-field">
+                    </div>
+                    <div class="form-group">
+                        <label for="p_costo_unitario">Costo unitario de compra:</label>
+                        <input type="number" id="p_costo_unitario" min="0.01" step="0.01" class="unit-field">
+                    </div>
+                    <div class="form-group">
+                        <label for="p_cantidad_empaque">Cantidad de cajas/paquetes:</label>
+                        <input type="number" id="p_cantidad_empaque" min="1" step="1" value="1" class="packaging-field">
+                    </div>
+                    <div class="form-group">
+                        <label for="p_unidades_empaque">Unidades por caja/paquete:</label>
+                        <input type="number" id="p_unidades_empaque" min="1" step="1" value="1" class="packaging-field">
+                    </div>
+                    <div class="form-group">
+                        <label for="p_precio_empaque">Precio por caja/paquete:</label>
+                        <input type="number" id="p_precio_empaque" min="0.01" step="0.01" class="packaging-field">
+                    </div>
+                    <div class="form-group">
+                        <label for="p_costo_unitario_calculado">Costo unitario calculado:</label>
+                        <input type="number" id="p_costo_unitario_calculado" class="calculated-field" step="0.01" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="p_precio_venta">Precio de venta unitario:</label>
                         <input type="number" id="p_precio_venta" required min="0.01" step="0.01">
                     </div>
                     <div class="form-group">
-                        <label for="p_stock">Stock Inicial:</label>
-                        <input type="number" id="p_stock" required min="0">
+                        <label for="p_margen">Margen de Ganancia (%):</label>
+                        <input type="number" id="p_margen" min="0" step="1" value="30">
+                    </div>
+                    <div class="form-group">
+                        <label for="p_precio_sugerido">Precio Venta Sugerido:</label>
+                        <input type="number" id="p_precio_sugerido" class="calculated-field" step="0.01" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="p_costo_total_calculado">Costo total calculado:</label>
+                        <input type="number" id="p_costo_total_calculado" class="calculated-field" step="0.01" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="p_stock">Stock inicial en unidades:</label>
+                        <input type="number" id="p_stock" class="calculated-field" required min="0" readonly>
                     </div>
 
                     <button type="submit" class="btn primary-btn full-width">
@@ -207,6 +316,17 @@
                     <div class="form-group">
                         <label for="co_query">Buscar Producto (ID, Código o Nombre):</label>
                         <input type="text" id="co_query" placeholder="Escriba para buscar y cargar datos" required>
+                        <!-- Lectura QR y codigo de barras desactivada temporalmente.
+                        <button type="button" class="btn secondary-btn scan-btn" id="co_scan_btn">
+                            <i class="fas fa-camera"></i> Escanear QR / barras
+                        </button>
+                        <div class="qr-scanner hidden" id="co_scanner_wrapper">
+                            <div id="co_scanner"></div>
+                            <button type="button" class="btn danger-btn" id="co_scan_close">
+                                <i class="fas fa-stop"></i> Cerrar cámara
+                            </button>
+                        </div>
+                        -->
                     </div>
                     <div class="form-group">
                         <label for="co_cantidad">Cantidad Comprada:</label>
@@ -238,6 +358,17 @@
                     <div class="form-group">
                         <label for="v_query">Buscar Producto (ID, Código o Nombre):</label>
                         <input type="text" id="v_query" required placeholder="Escriba para buscar y cargar datos">
+                        <!-- Lectura QR y codigo de barras desactivada temporalmente.
+                        <button type="button" class="btn secondary-btn scan-btn" id="v_scan_btn">
+                            <i class="fas fa-camera"></i> Escanear QR / barras
+                        </button>
+                        <div class="qr-scanner hidden" id="v_scanner_wrapper">
+                            <div id="v_scanner"></div>
+                            <button type="button" class="btn danger-btn" id="v_scan_close">
+                                <i class="fas fa-stop"></i> Cerrar cámara
+                            </button>
+                        </div>
+                        -->
                     </div>
                     <div class="form-group">
                         <label for="v_cantidad">Cantidad Vendida:</label>
@@ -280,6 +411,7 @@
     
     <!-- Contenedor responsive para la tabla de resumen -->
     <div class="data-table-container">
+        <div class="column-selector" id="resumenColumnSelector"></div>
         <table class="data-table hidden" id="resumenTable">
             <thead></thead>
             <tbody id="resumenTableBody"></tbody>
@@ -287,20 +419,147 @@
     </div>
 </section>
 
+            <!-- Historial de entradas y salidas de inventario -->
+            <section id="movimientos" class="content-section">
+                <h2><i class="fas fa-exchange-alt"></i> Movimientos de Inventario</h2>
+                <p>Historial de operaciones que modificaron el stock. El stock no se edita directamente.</p>
+                <div class="button-group">
+                    <button id="cargarMovimientosBtn" class="btn secondary-btn">
+                        <i class="fas fa-sync"></i> Actualizar movimientos
+                    </button>
+                </div>
+                <div id="statusMovimientos" class="status-message"></div>
+                <div class="data-table-container">
+                            <div class="column-selector" id="movimientosColumnSelector"></div>
+                    <table class="data-table" id="movimientosTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Producto</th>
+                                <th>Tipo</th>
+                                <th>Cantidad</th>
+                                <th>Precio unitario</th>
+                                <th>Stock anterior</th>
+                                <th>Stock nuevo</th>
+                                <!-- <th>Motivo</th> -->
+                            </tr>
+                        </thead>
+                        <tbody id="movimientosTableBody">
+                            <tr><td colspan="8">Presiona "Actualizar movimientos" para cargar el historial.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Existencias separadas por lote y costo de compra FIFO -->
+            <section id="lotes" class="content-section">
+                <h2><i class="fas fa-layer-group"></i> Lotes FIFO</h2>
+                <p>Cada compra crea un lote independiente. Las ventas consumen primero los lotes más antiguos.</p>
+                <div class="button-group">
+                    <button id="cargarLotesBtn" class="btn secondary-btn">
+                        <i class="fas fa-sync"></i> Actualizar lotes
+                    </button>
+                </div>
+                <div class="fifo-filters">
+                    <input type="search" id="lotesSearch" placeholder="Buscar lote, producto o compra">
+                    <input type="date" id="lotesDesde" aria-label="Lotes desde">
+                    <input type="date" id="lotesHasta" aria-label="Lotes hasta">
+                    <select id="lotesEstado">
+                        <option value="todos">Todos los estados</option>
+                        <option value="ACTIVO">Activos</option>
+                        <option value="AGOTADO">Agotados</option>
+                    </select>
+                    <button type="button" class="btn secondary-btn" id="limpiarFiltrosLotes"><i class="fas fa-eraser"></i> Limpiar</button>
+                </div>
+                <div id="statusLotes" class="status-message"></div>
+                <div class="data-table-container">
+                    <div class="column-selector" id="lotesColumnSelector"></div>
+                    <table class="data-table" id="lotesTable">
+                        <thead>
+                            <tr>
+                                <th>Lote</th>
+                                <th>Producto</th>
+                                <th>Compra</th>
+                                <th>Fecha</th>
+                                <th>Cantidad inicial</th>
+                                <th>Restante</th>
+                                <th>Costo unitario</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lotesTableBody">
+                            <tr><td colspan="8">Presiona "Actualizar lotes" para cargar los lotes.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Costo real y ganancia de cada venta según los lotes consumidos -->
+            <section id="detalleVentas" class="content-section">
+                <h2><i class="fas fa-receipt"></i> Detalle de Ventas FIFO</h2>
+                <p>Aquí se muestra de qué lote salió cada venta y cuál fue la ganancia real.</p>
+                <div class="button-group">
+                    <button id="cargarDetalleVentasBtn" class="btn secondary-btn">
+                        <i class="fas fa-sync"></i> Actualizar detalle
+                    </button>
+                </div>
+                <div class="fifo-filters">
+                    <input type="search" id="detalleVentasSearch" placeholder="Buscar venta, producto o lote">
+                    <input type="date" id="detalleVentasDesde" aria-label="Detalle desde">
+                    <input type="date" id="detalleVentasHasta" aria-label="Detalle hasta">
+                    <select id="detalleVentasGanancia">
+                        <option value="todas">Todas las ganancias</option>
+                        <option value="positiva">Ganancia positiva</option>
+                        <option value="negativa">Pérdida</option>
+                    </select>
+                    <button type="button" class="btn secondary-btn" id="limpiarFiltrosDetalleVentas"><i class="fas fa-eraser"></i> Limpiar</button>
+                </div>
+                <div id="statusDetalleVentas" class="status-message"></div>
+                <div class="data-table-container">
+                    <div class="column-selector" id="detalleVentasColumnSelector"></div>
+                    <table class="data-table" id="detalleVentasTable">
+                        <thead>
+                            <tr>
+                                <th>Venta</th>
+                                <th>Producto</th>
+                                <th>Lote</th>
+                                <th>Cantidad</th>
+                                <th>Costo FIFO</th>
+                                <th>Precio venta</th>
+                                <th>Costo total</th>
+                                <th>Venta total</th>
+                                <th>Ganancia</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detalleVentasTableBody">
+                            <tr><td colspan="9">Presiona "Actualizar detalle" para cargar las ventas FIFO.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
             <!-- Sección 7: Configuración -->
             <section id="configuracion" class="content-section">
                 <h2><i class="fas fa-cog"></i> Configuración de Base de Datos</h2>
                 <div class="config-actions">
-                    <p>Esta acción **creará/verificará** las pestañas necesarias en Google Sheet.</p>
+                    <h1>⚠️ Advertencia</h1>
+                    <p>RATITA MEJOR TE QUITO ESTE ACCESO POR EL MOMENTO O ELIMINARAS LA BASE DE DATOS POR ERROR </p>
+
+                    <!--<p>Esta acción **creará/verificará** las pestañas necesarias en Google Sheet.</p>
                     <button id="iniciarDBBtn" class="btn primary-btn">
                         <i class="fas fa-play-circle"></i> Iniciar Base de Datos
-                    </button>
+                    </button>-->
                     
-                    <p class="warning-text" style="color: var(--danger-color); font-weight: bold; margin-top: 20px;">
+                    <!--<p class="warning-text" style="color: var(--danger-color); font-weight: bold; margin-top: 20px;">
                         ¡ADVERTENCIA! Esta acción eliminará **TODOS** los datos.
                     </p>
                     <button id="resetDBBtn" class="btn danger-btn">
                         <i class="fas fa-sync-alt"></i> Resetear Base de Datos
+                    </button>
+                    -->
+                    <button id="logoutBtn" class="btn secondary-btn" style="margin-top: 16px;">
+                        <i class="fas fa-sign-out-alt"></i> Cerrar sesión
                     </button>
                 </div>
                 <div id="statusConfig" class="status-message"></div>
